@@ -1,0 +1,63 @@
+"""Training loop and pointwise eval, using a stand-in student and loss."""
+
+import torch
+from torch import nn
+
+from src.data.schema import SetwiseExample
+from src.engine.evaluator import evaluate_pointwise
+from src.engine.trainer import SetwiseLoader, SetwiseTrainer
+from src.models.student import flatten_sets
+
+
+class ToyStudent(nn.Module):
+    """Scores a document by its length. Enough to exercise the loop."""
+
+    def __init__(self):
+        super().__init__()
+        self.weight = nn.Parameter(torch.tensor(0.1))
+
+    def score_pairs(self, queries, documents):
+        lengths = torch.tensor(
+            [float(len(doc)) for doc in documents],
+            dtype=torch.float32,
+            device=self.weight.device,
+        )
+        return lengths * self.weight
+
+    def score_sets(self, queries, document_sets):
+        flat_queries, flat_documents, k = flatten_sets(queries, document_sets)
+        return self.score_pairs(flat_queries, flat_documents).view(len(queries), k)
+
+
+def _stand_in_loss(scores, winner_index):
+    """Not the setwise loss. Only checks that a scalar can drive the optimizer."""
+    return scores.pow(2).mean()
+
+
+def test_trainer_step_updates_the_student():
+    examples = [
+        SetwiseExample(query="q", documents=["aa", "bbbb"], winner_index=1),
+        SetwiseExample(query="q2", documents=["c", "ddd"], winner_index=0),
+    ]
+    student = ToyStudent()
+    before = student.weight.detach().clone()
+    trainer = SetwiseTrainer(student, _stand_in_loss, lr=0.05, device="cpu")
+    history = trainer.fit(SetwiseLoader(examples, batch_size=2, shuffle=False), epochs=1)
+    assert len(history) == 1
+    assert not torch.equal(before, student.weight.detach())
+
+
+def test_pointwise_eval_ranks_by_student_score():
+    import pandas as pd
+
+    frame = pd.DataFrame(
+        [
+            {"query": "q", "title": "short", "body": "a", "relevance": 0},
+            {"query": "q", "title": "long", "body": "aaaa", "relevance": 3},
+        ]
+    )
+    student = ToyStudent()
+    result = evaluate_pointwise(student, frame, format_fn=lambda row: row["body"])
+    assert result.means["ndcg@1"] == 1.0
+    best = result.scored.sort_values("score", ascending=False).iloc[0]
+    assert best["relevance"] == 3.0
