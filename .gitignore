@@ -1,0 +1,21 @@
+# Python cache
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Virtual environments
+.venv/
+venv/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Env files
+.env
+
+# Tooling
+.pytest_cache/
+.ruff_cache/
+
+*/data/
+*.csv
