@@ -7,6 +7,7 @@ by the same score and never builds a set.
 
 import torch
 from torch import nn
+from transformers import AutoTokenizer, AutoModelForSequenceClassification
 
 
 def flatten_sets(
@@ -35,11 +36,18 @@ class StudentRanker(nn.Module):
     def __init__(self, model_name: str):
         super().__init__()
         self.model_name = model_name
-        # TODO(david): load a pointwise encoder and a scoring head.
-        # A cross-encoder is the usual choice: [CLS] query [SEP] document [SEP],
-        # then a linear layer to one logit. Register every parameter on self
-        # so SetwiseTrainer can build an optimizer.
-        # You will need: poetry add transformers
+
+        self.tokenizer = AutoTokenizer.from_pretrained(model_name)
+
+        #Load the model substituting the classification head for a linear layer
+        self.model = AutoModelForSequenceClassification.from_pretrained(model_name, num_labels=1)
+
+        #If the tokenizer does not have a pad token (critical for Decoder-only models, like Llama), set it to the eos token
+        if self.tokenizer.pad_token is None:
+            self.tokenizer.pad_token = self.tokenizer.eos_token
+            self.model.config.pad_token_id = self.model.config.eos_token_id    
+
+    
 
     def score_pairs(self, queries: list[str], documents: list[str]) -> torch.Tensor:
         """Relevance logit for each pair. Shape [num_pairs]. Higher is better.

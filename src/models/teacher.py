@@ -9,7 +9,7 @@ this class waits on that one method.
 """
 
 import os
-
+import string
 from openai import OpenAI
 
 from src.config import DATASET_CONFIGS
@@ -95,10 +95,53 @@ class SetwiseTeacher:
             4. Call the chat API at temperature 0 with a short completion.
             5. Map that letter back to an index. Anything else is -1.
         """
-        raise NotImplementedError(
-            "Implement SetwiseTeacher.compare_documents_setwise. "
-            "Return the index of the document the LLM picks, or -1."
-        )
+        system_prompt = f"""You are an expert f{self.config["persona"]}. 
+        Your task is to compare multiple documents and determine which one is the most relevant to a user's search query.
+        """
+
+        labels = list(string.ascii_uppercase)[:len(docs)]
+
+        docs_formatted = []
+        for label, doc in zip(labels, docs):
+            docs_formatted.append(f"Document {label}:\n{self.format_doc(doc)}")
+
+
+        doc_string = "\n\n".join(docs_formatted)
+
+        if len(labels) > 1:
+            valid_labels = ", ".join([f"'{l}" for l in labels[:-1]]) + f", or '{labels[-1]}'"
+        else:
+            valid_labels = f"'{labels[0]}'"
+
+        user_prompt = f"""Query: {query_text}
+
+        {doc_string}
+
+        Which document is the most relevant to the query? Output exactly the letter of the most relevant document ({valid_labels}). Do not provide any explanation or extra text."""
+
+        try:
+            response = self.client.chat.completions.create(
+                model=self.model_name,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt},
+                ],
+                temperature=0.0,
+                max_tokens=2,
+            )
+
+            winner_token = response.choices[0].message.content.strip()
+
+            for i, label in enumerate(labels):
+                if label in winner_token:
+                    return i
+            #Return -1 if the reply is not one of the labels
+            return -1
+
+            return labels.index(response.choices[0].message.content.upper())
+        except Exception as e:
+            print(f"Error comparing documents: {e}")
+            return -1
 
     def rank(
         self,
