@@ -95,7 +95,7 @@ class SetwiseTeacher:
             4. Call the chat API at temperature 0 with a short completion.
             5. Map that letter back to an index. Anything else is -1.
         """
-        system_prompt = f"""You are an expert f{self.config["persona"]}. 
+        system_prompt = f"""You are f{self.config["persona"]}. 
         Your task is to compare multiple documents and determine which one is the most relevant to a user's search query.
         """
 

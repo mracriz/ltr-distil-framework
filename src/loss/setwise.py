@@ -17,6 +17,7 @@ The loss is about 0.2395.
 """
 
 import torch
+import torch.nn.functional as F
 
 
 def setwise_loss(scores: torch.Tensor, winner_index: torch.Tensor) -> torch.Tensor:
@@ -28,7 +29,5 @@ def setwise_loss(scores: torch.Tensor, winner_index: torch.Tensor) -> torch.Tens
     Returns:
         A scalar, the mean over the batch.
     """
-    raise NotImplementedError(
-        "Implement setwise_loss: cross-entropy of softmax(scores) "
-        "with the teacher winner as the class."
-    )
+    
+    return F.cross_entropy(scores, winner_index)
