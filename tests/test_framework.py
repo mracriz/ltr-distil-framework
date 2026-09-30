@@ -9,6 +9,7 @@ from src.config import DATASET_CONFIGS
 from src.data.dataset import sample_document_sets
 from src.data.schema import SetwiseExample, load_examples, save_examples
 from src.engine.generator import SetwiseLabelGenerator
+from src.models.student import resolve_student_model
 from src.models.teacher import SetwiseTeacher
 from src.utils.metrics import mean_ndcg, ndcg_at_k
 
@@ -46,6 +47,16 @@ def _pair_frame():
             {"query": "q", "title": "b", "body": "beta", "relevance": 0},
             {"query": "other", "title": "c", "body": "gamma", "relevance": 2},
         ]
+    )
+
+
+def test_ollama_student_name_points_at_llama_weights():
+    assert (
+        resolve_student_model("llama3.2:3b")
+        == "meta-llama/Llama-3.2-3B-Instruct"
+    )
+    assert resolve_student_model("cross-encoder/ms-marco-MiniLM-L-6-v2") == (
+        "cross-encoder/ms-marco-MiniLM-L-6-v2"
     )
 
 

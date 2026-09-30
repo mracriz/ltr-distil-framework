@@ -1,6 +1,8 @@
 """Train the pointwise student with a setwise loss."""
 
+import csv
 import random
+from pathlib import Path
 
 import torch
 
@@ -106,14 +108,73 @@ class SetwiseTrainer:
         self.optimizer.step()
         return float(loss.detach().cpu())
 
-    def fit(self, loader: SetwiseLoader, epochs: int = 1) -> list[float]:
-        history = []
-        for epoch in range(epochs):
+    def fit(
+        self,
+        loader: SetwiseLoader,
+        epochs: int = 1,
+        log_path: str | Path | None = None,
+        ndcg_frame=None,
+        format_fn=None,
+    ) -> list[dict]:
+        """Train for `epochs` and record one row per epoch.
+
+        When `ndcg_frame` and `format_fn` are both set, each row includes
+        training nDCG@10 on that frame. The grades in the frame are human
+        relevance labels. The loss itself is whatever `loss_fn` computes.
+        """
+        if (ndcg_frame is None) != (format_fn is None):
+            raise ValueError("Pass ndcg_frame and format_fn together to log nDCG@10")
+
+        history: list[dict] = []
+        for epoch in range(1, epochs + 1):
             losses = [self.train_step(batch) for batch in loader]
             mean_loss = sum(losses) / max(len(losses), 1)
-            history.append(mean_loss)
-            logger.info("epoch %s loss %.4f", epoch + 1, mean_loss)
+            ndcg = self._train_ndcg_at_10(ndcg_frame, format_fn)
+            row = {
+                "epoch": epoch,
+                "train_loss": mean_loss,
+                "train_ndcg@10": ndcg,
+            }
+            history.append(row)
+            self._print_epoch(row)
+            if log_path is not None:
+                _write_epoch_log(log_path, history)
         return history
+
+    def _train_ndcg_at_10(self, frame, format_fn) -> float | None:
+        if frame is None:
+            return None
+        from src.engine.evaluator import evaluate_pointwise
+
+        metrics = evaluate_pointwise(self.student, frame, format_fn, ks=(10,))
+        return metrics.means.get("ndcg@10")
+
+    def _print_epoch(self, row: dict) -> None:
+        message = f"epoch {row['epoch']}  train_loss {row['train_loss']:.4f}"
+        if row["train_ndcg@10"] is not None:
+            message += f"  train_ndcg@10 {row['train_ndcg@10']:.4f}"
+        print(message)
+        logger.info(message)
+
+
+def _write_epoch_log(path: str | Path, history: list[dict]) -> None:
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("w", newline="", encoding="utf-8") as handle:
+        writer = csv.DictWriter(
+            handle,
+            fieldnames=["epoch", "train_loss", "train_ndcg@10"],
+        )
+        writer.writeheader()
+        for row in history:
+            ndcg = row["train_ndcg@10"]
+            writer.writerow(
+                {
+                    "epoch": row["epoch"],
+                    "train_loss": f"{row['train_loss']:.6f}",
+                    "train_ndcg@10": "" if ndcg is None else f"{ndcg:.6f}",
+                }
+            )
 
 
 def _default_device() -> str:
