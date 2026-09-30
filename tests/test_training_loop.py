@@ -34,16 +34,38 @@ def _stand_in_loss(scores, winner_index):
     return scores.pow(2).mean()
 
 
-def test_trainer_step_updates_the_student():
+def test_trainer_step_updates_the_student(tmp_path, capsys):
+    import pandas as pd
+
     examples = [
         SetwiseExample(query="q", documents=["aa", "bbbb"], winner_index=1),
         SetwiseExample(query="q2", documents=["c", "ddd"], winner_index=0),
     ]
+    frame = pd.DataFrame(
+        [
+            {"query": "q", "title": "short", "body": "a", "relevance": 0},
+            {"query": "q", "title": "long", "body": "aaaa", "relevance": 3},
+        ]
+    )
     student = ToyStudent()
     before = student.weight.detach().clone()
     trainer = SetwiseTrainer(student, _stand_in_loss, lr=0.05, device="cpu")
-    history = trainer.fit(SetwiseLoader(examples, batch_size=2, shuffle=False), epochs=1)
-    assert len(history) == 1
+    log_path = tmp_path / "train_log.csv"
+    history = trainer.fit(
+        SetwiseLoader(examples, batch_size=2, shuffle=False),
+        epochs=2,
+        log_path=log_path,
+        ndcg_frame=frame,
+        format_fn=lambda row: row["body"],
+    )
+    assert [row["epoch"] for row in history] == [1, 2]
+    assert history[0]["train_ndcg@10"] == 1.0
+    saved = pd.read_csv(log_path)
+    assert list(saved["epoch"]) == [1, 2]
+    assert "train_loss" in saved.columns
+    printed = capsys.readouterr().out
+    assert "epoch 1" in printed
+    assert "train_ndcg@10" in printed
     assert not torch.equal(before, student.weight.detach())
 
 

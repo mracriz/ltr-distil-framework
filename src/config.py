@@ -28,7 +28,7 @@ class DistillConfig:
     dataset_name: str = "jusbrasil"
     teacher_client: str = "ollama"
     teacher_model: str = "llama3.1:8b"
-    student_model: str = "cross-encoder/ms-marco-MiniLM-L-6-v2"
+    student_model: str = "llama3.2:3b"
     k_size: int = 4
     max_doc_chars: int = 1500
     sets_per_query: int = 4
