@@ -56,10 +56,27 @@ class StudentRanker(nn.Module):
         device as the model parameters, and keep it attached to the graph
         during training.
         """
-        raise NotImplementedError(
-            "Implement StudentRanker.score_pairs. "
-            "Return one score per (query, document), shape [num_pairs]."
+
+        inputs = self.tokenizer(
+            queries,
+            documents,
+            padding=True,
+            truncation=True,
+            max_length=512,
+            return_tensors="pt",
         )
+
+        #Move input tensors for the same device (CPU/GPU)
+        device = next(self.model.parameters()).device
+        inputs = {key: tensor.to(device) for key, tensor in inputs.items()}
+
+        #Do the forward pass (without generating text, only calculating gradients/logits)
+        outputs = self.model(**inputs)
+
+        # Extract the logits. The output has the shape [batch_size, 1]
+        # The squeeze(-1) removes the last dimession, return a 1D array [batch_size]
+        return outputs.logits.squeeze(-1)
+        
 
     def score_sets(
         self,
