@@ -5,6 +5,7 @@ import random
 from pathlib import Path
 
 import torch
+from tqdm.auto import tqdm
 
 from src.data.schema import SetwiseExample
 from src.utils.logger import get_logger
@@ -127,7 +128,12 @@ class SetwiseTrainer:
 
         history: list[dict] = []
         for epoch in range(1, epochs + 1):
-            losses = [self.train_step(batch) for batch in loader]
+            steps = tqdm(loader, total=len(loader), desc=f"epoch {epoch} train")
+            losses = []
+            for batch in steps:
+                loss = self.train_step(batch)
+                losses.append(loss)
+                steps.set_postfix(loss=f"{loss:.3f}")
             mean_loss = sum(losses) / max(len(losses), 1)
             ndcg = self._train_ndcg_at_10(ndcg_frame, format_fn)
             row = {
@@ -146,7 +152,13 @@ class SetwiseTrainer:
             return None
         from src.engine.evaluator import evaluate_pointwise
 
-        metrics = evaluate_pointwise(self.student, frame, format_fn, ks=(10,))
+        metrics = evaluate_pointwise(
+            self.student,
+            frame,
+            format_fn,
+            ks=(10,),
+            batch_size=4,
+        )
         return metrics.means.get("ndcg@10")
 
     def _print_epoch(self, row: dict) -> None:

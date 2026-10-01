@@ -26,13 +26,13 @@ class DistillConfig:
     """
 
     dataset_name: str = "jusbrasil"
-    teacher_client: str = "ollama"
-    teacher_model: str = "llama3.1:8b"
-    student_model: str = "llama3.2:3b"
+    teacher_client: str = "openrouter"
+    teacher_model: str = "meta-llama/llama-3.3-70b-instruct"
+    student_model: str = "meta-llama/Llama-3.2-3B-Instruct"
     k_size: int = 4
     max_doc_chars: int = 1500
     sets_per_query: int = 4
-    batch_size: int = 8
+    batch_size: int = 1
     epochs: int = 1
     learning_rate: float = 2e-5
     seed: int = 0

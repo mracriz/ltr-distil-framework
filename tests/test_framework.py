@@ -51,13 +51,18 @@ def _pair_frame():
 
 
 def test_ollama_student_name_points_at_llama_weights():
+    from src.models.student import uses_lora
+
     assert (
         resolve_student_model("llama3.2:3b")
         == "meta-llama/Llama-3.2-3B-Instruct"
     )
+    assert uses_lora("llama3.2:3b")
+    assert uses_lora("meta-llama/Llama-3.2-3B-Instruct")
     assert resolve_student_model("cross-encoder/ms-marco-MiniLM-L-6-v2") == (
         "cross-encoder/ms-marco-MiniLM-L-6-v2"
     )
+    assert not uses_lora("cross-encoder/ms-marco-MiniLM-L-6-v2")
 
 
 def test_ndcg_perfect_and_reversed():
