@@ -9,6 +9,7 @@ from dataclasses import dataclass
 import numpy as np
 import pandas as pd
 import torch
+from tqdm.auto import tqdm
 
 from src.data.dataset import query_groups
 from src.utils.metrics import mean_ndcg
@@ -54,7 +55,8 @@ def evaluate_pointwise(
     teacher.format_doc, so the student reads the text it was distilled on.
     """
     scored_rows = []
-    for query, docs in query_groups(df):
+    groups = query_groups(df)
+    for query, docs in tqdm(groups, desc="scoring queries"):
         texts = [format_fn(doc) for doc in docs]
         scores = score_query(student, query, texts, batch_size=batch_size)
         for doc, text, score in zip(docs, texts, scores):
