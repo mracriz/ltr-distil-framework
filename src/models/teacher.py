@@ -311,7 +311,24 @@ class PairwiseTeacher(LLMTeacher):
             3. Map A to 0 and B to 1. Anything else is -1.
         """
         
-        system = f"""You are {self.config['persona']}.
+        system_prompt  = f"""You are {self.config['persona']}.
         Your task is to compare two documents and determine which one is relevant for the user's search query."""
 
-    
+        user_prompt = f"""Query: {query_text}
+
+        Document A:
+        {self.format_doc(doc_a)}
+
+        Document B:
+        {self.format_doc(doc_b)}
+
+        Which document is more relevant to the query? Output exactly 'A' if document A is more relevant, 'B' if document B is more relevant. Do not provide any explanation or extra text."""
+        
+        winner_token = self._complete(system_prompt, user_prompt).strip().upper()
+
+        if winner_token == 'A':
+            return 0
+        elif winner_token == 'B':
+            return 1
+        else:
+            return - 1

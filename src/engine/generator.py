@@ -1,6 +1,7 @@
 """Turn a ranking table into setwise teacher labels."""
 
 import random
+import itertools
 from dataclasses import dataclass, field
 
 from tqdm.auto import tqdm
@@ -166,3 +167,29 @@ class PairwiseLabelGenerator:
                 winner_index=winner,
             )
         )
+
+    def from_all_pairs(
+        self,
+        df,
+        max_queries: int | None = None,
+    ) -> GenerationResult:
+        """Compare every unordered pair of documents for each query.
+
+        A query with n documents produces n * (n - 1) / 2 teacher calls.
+        """
+        groups = query_groups(df)
+        if max_queries is not None:
+            groups = groups[:max_queries]
+
+        result = GenerationResult(queries_seen=len(groups))
+
+        for query, docs in tqdm(groups, desc="Generating all-pairs labels"):
+            for pair in itertools.combinations(docs, 2):
+                self._append_pair(result, query, list(pair))
+        logger.info(
+            "all-pairs labels: %s examples, %s skipped, %s queries",
+            len(result.examples),
+            result.skipped,
+            result.queries_seen,
+        )
+        return result

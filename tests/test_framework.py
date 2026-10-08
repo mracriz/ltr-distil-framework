@@ -201,3 +201,19 @@ def test_pairwise_generator_stores_a_pair_and_skips_a_tie():
     assert example.winner_index in (0, 1)
     assert len(example.documents) == 2
     assert teacher.calls == ["q", "tie"]
+
+
+def test_all_pairs_covers_every_unordered_pair():
+    frame = pd.DataFrame(
+        [
+            {"query": "q", "title": "a", "body": "a", "relevance": 1},
+            {"query": "q", "title": "b", "body": "b", "relevance": 3},
+            {"query": "q", "title": "c", "body": "c", "relevance": 2},
+        ]
+    )
+    teacher = _PairTeacher()
+    result = PairwiseLabelGenerator(teacher).from_all_pairs(frame)
+    assert result.queries_seen == 1
+    assert result.skipped == 0
+    assert len(result.examples) == 3
+    assert [example.winner_index for example in result.examples] == [1, 1, 0]

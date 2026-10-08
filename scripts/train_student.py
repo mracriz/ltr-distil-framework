@@ -101,10 +101,12 @@ def main() -> None:
     print(f"test: {test_df['query'].nunique()} queries, {len(test_df)} rows")
 
     # format_doc only. Ollama here avoids opening an API client.
+    # Pairwise labels were cut at 3000 characters. Setwise labels used 1500.
     teacher = SetwiseTeacher(
         api_client_type="ollama",
         model_name="unused",
         dataset_name="jusbrasil",
+        max_chars=3000 if args.loss == "pairwise" else 1500,
     )
     student = StudentRanker(args.student_model)
     loader = SetwiseLoader(

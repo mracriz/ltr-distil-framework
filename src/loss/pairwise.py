@@ -15,13 +15,17 @@ The loss is about 0.1269.
 """
 
 import torch
+import torch.nn.functional as F
+
 
 
 def pairwise_ranknet_loss(
     scores: torch.Tensor,
     winner_index: torch.Tensor,
 ) -> torch.Tensor:
-    raise NotImplementedError(
-        "Implement pairwise_ranknet_loss. "
-        "scores [[2.0, 0.0]] and winner 0 should give a value near 0.1269."
-    )
+    """
+    Args:
+        scores: float tensor [batch, 2].
+        winner_index: long tensor [batch], values 0 or 1.
+    """
+    return F.cross_entropy(scores, winner_index)

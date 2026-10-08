@@ -68,7 +68,7 @@ poetry run pytest
 
 Same student and the same pointwise evaluation. The teacher compares two documents instead of a set, and the loss is RankNet on that pair. A saved pair is a `SetwiseExample` with two documents, so the existing training loop can read it.
 
-Already in place: pair sampling, `PairwiseLabelGenerator`, JSONL, `scripts/label_pairwise.py`, and `scripts/train_student.py --loss pairwise`.
+Already in place: all-pairs labeling in `PairwiseLabelGenerator.from_all_pairs`, JSONL, `scripts/label_pairwise.py`, and `scripts/train_student.py --loss pairwise`. A query with n documents produces n(n-1)/2 teacher calls.
 
 Two pieces are yours:
 
