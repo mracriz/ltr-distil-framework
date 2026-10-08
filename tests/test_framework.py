@@ -8,9 +8,9 @@ import pytest
 from src.config import DATASET_CONFIGS
 from src.data.dataset import sample_document_sets
 from src.data.schema import SetwiseExample, load_examples, save_examples
-from src.engine.generator import SetwiseLabelGenerator
+from src.engine.generator import PairwiseLabelGenerator, SetwiseLabelGenerator
 from src.models.student import resolve_student_model
-from src.models.teacher import SetwiseTeacher
+from src.models.teacher import PairwiseTeacher, SetwiseTeacher
 from src.utils.metrics import mean_ndcg, ndcg_at_k
 
 
@@ -48,6 +48,11 @@ def _pair_frame():
             {"query": "other", "title": "c", "body": "gamma", "relevance": 2},
         ]
     )
+
+
+def test_unknown_teacher_client_is_rejected():
+    with pytest.raises(ValueError, match="huggingface"):
+        SetwiseTeacher("nope", "unused", dataset_name="trec_dl")
 
 
 def test_ollama_student_name_points_at_llama_weights():
@@ -157,3 +162,42 @@ def test_rank_trace_can_feed_the_generator():
     result = SetwiseLabelGenerator(OracleTeacher(k_size=3)).from_rank_trace(frame)
     assert result.examples
     assert result.examples[0].query == "q"
+
+
+class _PairTeacher(PairwiseTeacher):
+    def __init__(self):
+        self.api_client_type = "stub"
+        self.model_name = "stub"
+        self.max_chars = 20
+        self.config = DATASET_CONFIGS["trec_dl"]
+        self.client = None
+        self.calls = []
+
+    def compare_documents_pairwise(self, doc_a, doc_b, query_text):
+        self.calls.append(query_text)
+        if float(doc_a["relevance"]) == float(doc_b["relevance"]):
+            return -1
+        return 0 if float(doc_a["relevance"]) > float(doc_b["relevance"]) else 1
+
+
+def test_pairwise_generator_stores_a_pair_and_skips_a_tie():
+    frame = pd.DataFrame(
+        [
+            {"query": "q", "title": "a", "body": "a", "relevance": 1},
+            {"query": "q", "title": "b", "body": "b", "relevance": 3},
+            {"query": "tie", "title": "c", "body": "c", "relevance": 1},
+            {"query": "tie", "title": "d", "body": "d", "relevance": 1},
+        ]
+    )
+    teacher = _PairTeacher()
+    result = PairwiseLabelGenerator(teacher, pairs_per_query=1, seed=0).from_samples(
+        frame
+    )
+    assert result.queries_seen == 2
+    assert len(result.examples) == 1
+    assert result.skipped == 1
+    example = result.examples[0]
+    assert example.query == "q"
+    assert example.winner_index in (0, 1)
+    assert len(example.documents) == 2
+    assert teacher.calls == ["q", "tie"]

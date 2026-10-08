@@ -9,6 +9,10 @@ venv/
 
 # Jupyter
 .ipynb_checkpoints/
+notebooks/
+
+# Editor settings (machine-specific interpreter paths)
+.vscode/
 
 # Env files
 .env
@@ -17,5 +21,9 @@ venv/
 .pytest_cache/
 .ruff_cache/
 
-*/data/
+# Local outputs and cluster job files. The sbatch scripts contain
+# absolute paths on this machine and stay out of the remote.
 *.csv
+logs/
+scripts/*.sbatch
+docs/

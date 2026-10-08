@@ -30,4 +30,4 @@ def setwise_loss(scores: torch.Tensor, winner_index: torch.Tensor) -> torch.Tens
         A scalar, the mean over the batch.
     """
     
-    return F.cross_entropy(scores, winner_index)
+    return F.cross_xentropy(scores, winner_index)

@@ -35,7 +35,7 @@ Suggested order: teacher, then generate a handful of labels, then the loss, then
 ```
 src/config.py            dataset personas and DistillConfig
 src/data/                query grouping, set sampling, JSONL labels
-src/models/teacher.py    API client, document text, setwise heapsort
+src/models/teacher.py    LLMTeacher, plus SetwiseTeacher and PairwiseTeacher
 src/models/student.py    pointwise ranker (score_pairs is yours)
 src/loss/                setwise loss (yours); listmle and pairwise optional
 src/engine/generator.py  teacher labels
@@ -62,4 +62,28 @@ Put `OPENROUTER_API_KEY` in a `.env` file if the teacher client is `openrouter`.
 
 ```bash
 poetry run pytest
+```
+
+## Pairwise track
+
+Same student and the same pointwise evaluation. The teacher compares two documents instead of a set, and the loss is RankNet on that pair. A saved pair is a `SetwiseExample` with two documents, so the existing training loop can read it.
+
+Already in place: pair sampling, `PairwiseLabelGenerator`, JSONL, `scripts/label_pairwise.py`, and `scripts/train_student.py --loss pairwise`.
+
+Two pieces are yours:
+
+| Piece | File | Contract |
+| --- | --- | --- |
+| Pair comparison | `src/models/teacher.py` | `PairwiseTeacher.compare_documents_pairwise(doc_a, doc_b, query) -> int` |
+| RankNet loss | `src/loss/pairwise.py` | `pairwise_ranknet_loss(scores [batch, 2], winner [batch]) -> scalar` |
+
+`compare_documents_pairwise` returns 0 when the first document wins and 1 when the second wins. The pairwise notebook returns a sort comparator instead. Use `self._complete` and `self.format_doc`. Do not rebuild the client.
+
+A check for the loss, once it is written: scores `[[2.0, 0.0]]` and winner `0` should give a value near `0.1269`.
+
+After both are written:
+
+```bash
+sbatch scripts/label_pairwise.sbatch
+sbatch scripts/train_pairwise.sbatch
 ```

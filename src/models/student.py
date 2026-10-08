@@ -89,7 +89,7 @@ class StudentRanker(nn.Module):
             self.hf_model_name,
             num_labels=1,
             token=token,
-            dtype=dtype,
+            torch_dtype=dtype,
         )
 
         # A pad token equal to eos makes Llama read the wrong position.

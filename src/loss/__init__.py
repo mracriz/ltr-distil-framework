@@ -1,6 +1,6 @@
 """Training objectives.
 
-Implement setwise_loss first. That is the loss SetwiseTrainer expects.
-listmle_loss and pairwise_ranknet_loss are optional alternatives on the
-same student scores.
+setwise_loss is the loss the setwise run uses.
+pairwise_ranknet_loss is the loss the pairwise run uses. It is still to
+be written. listmle_loss is an optional extra when a full order exists.
 """

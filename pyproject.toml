@@ -23,18 +23,25 @@ pydantic = "^2.11.0"
 openai = ">=2.12.0,<3.0.0"
 anthropic = "^0.60.0"
 litellm = "^1.74.0"
-pyserini = "^2.3.0"
+pyserini = ">=1.4.0,<1.5.0"
 ir-datasets = "^0.6.3"
 duckdb = "^1.4.1"
 lightgbm = "^4.7.0"
 openrouter = "^1.1.157"
 beir = "^2.2.0"
-torch = ">=2.2.0"
+torch = { version = "2.4.0+cu121", source = "pytorch-cu121" }
+transformers = ">=4.51.3,<4.52.0"
 peft = "^0.14.0"
+setuptools = "^84.0.0"
 
 [tool.poetry.group.dev.dependencies]
 ruff = "^0.12.0"
 pytest = "^8.4.0"
+
+[[tool.poetry.source]]
+name = "pytorch-cu121"
+url = "https://download.pytorch.org/whl/cu121"
+priority = "explicit"
 
 [tool.pytest.ini_options]
 pythonpath = ["."]

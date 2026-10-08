@@ -7,7 +7,7 @@ from tqdm.auto import tqdm
 
 from src.data.dataset import query_groups, sample_document_sets
 from src.data.schema import SetwiseExample
-from src.models.teacher import SetwiseTeacher
+from src.models.teacher import PairwiseTeacher, SetwiseTeacher
 from src.utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -103,4 +103,66 @@ class SetwiseLabelGenerator:
             len(result.examples),
             result.skipped,
             result.queries_seen,
+        )
+
+
+class PairwiseLabelGenerator:
+    """Call the teacher on document pairs and keep the winner as the label.
+
+    Each stored example has two formatted documents. winner_index is 0 or 1.
+    The student still scores documents one at a time. The pairwise loss reads
+    those two scores.
+    """
+
+    def __init__(
+        self,
+        teacher: PairwiseTeacher,
+        pairs_per_query: int = 4,
+        seed: int = 0,
+    ):
+        self.teacher = teacher
+        self.pairs_per_query = pairs_per_query
+        self.seed = seed
+
+    def from_samples(
+        self,
+        df,
+        pairs_per_query: int | None = None,
+        max_queries: int | None = None,
+        seed: int | None = None,
+    ) -> GenerationResult:
+        n_pairs = self.pairs_per_query if pairs_per_query is None else pairs_per_query
+        rng = random.Random(self.seed if seed is None else seed)
+        groups = query_groups(df)
+        if max_queries is not None:
+            groups = groups[:max_queries]
+
+        result = GenerationResult(queries_seen=len(groups))
+        for query, docs in tqdm(groups, desc="Sampling pairwise labels"):
+            for pair in sample_document_sets(docs, 2, n_pairs, rng):
+                self._append_pair(result, query, pair)
+        logger.info(
+            "pairwise labels: %s examples, %s skipped, %s queries",
+            len(result.examples),
+            result.skipped,
+            result.queries_seen,
+        )
+        return result
+
+    def _append_pair(
+        self,
+        result: GenerationResult,
+        query: str,
+        pair: list[dict],
+    ) -> None:
+        winner = self.teacher.compare_documents_pairwise(pair[0], pair[1], query)
+        if winner not in (0, 1):
+            result.skipped += 1
+            return
+        result.examples.append(
+            SetwiseExample(
+                query=query,
+                documents=[self.teacher.format_doc(doc) for doc in pair],
+                winner_index=winner,
+            )
         )
